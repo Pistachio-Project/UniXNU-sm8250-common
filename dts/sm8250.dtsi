@@ -1,0 +1,235 @@
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+// Qualcomm SM8250 / SM8250-AC (kona) shared hardware description.
+//
+// Sources, in order of authority:
+//   1. Registers measured and driven on a Xiaomi Mi 10T (apollo) by the HakiOS
+//      drivers now in UniXNU-apollo/hakios/xnu/files (each node names its driver).
+//   2. arch/arm64/boot/dts/qcom/sm8250.dtsi of torvalds/linux at v6.12
+//      (adc218676eef25575469234709c2d87185ca223a).
+// Every node here is SoC-wide. Memory, reserved regions, panel, touch, codecs,
+// amplifiers and which controllers are enabled belong in the board DTS.
+//
+// Nodes without `unixnu,adt-name` do not reach XNU's ADT today (see
+// docs/porting/device-tree.md in UniXNU). They record the SoC's resources for
+// the drivers that move here from HakiOS; such a driver adds the adt-name it
+// matches when it starts reading the ADT instead of fixed addresses.
+
+/ {
+    compatible = "qcom,sm8250";
+    #address-cells = <2>;
+    #size-cells = <2>;
+    interrupt-parent = <&gic>;
+
+    cpus {
+        #address-cells = <2>;
+        #size-cells = <0>;
+        // The SM8xxx architectural counter.
+        timebase-frequency = <19200000>;
+
+        // Kryo 585 Silver (Cortex-A55): cpufreq domain 0.
+        cpu0: cpu@0 { device_type = "cpu"; compatible = "arm,cortex-a55"; reg = <0 0x0>; unixnu,cluster-type = "E"; };
+        cpu1: cpu@100 { device_type = "cpu"; compatible = "arm,cortex-a55"; reg = <0 0x100>; unixnu,cluster-type = "E"; };
+        cpu2: cpu@200 { device_type = "cpu"; compatible = "arm,cortex-a55"; reg = <0 0x200>; unixnu,cluster-type = "E"; };
+        cpu3: cpu@300 { device_type = "cpu"; compatible = "arm,cortex-a55"; reg = <0 0x300>; unixnu,cluster-type = "E"; };
+
+        // Kryo 585 Gold (Cortex-A77): cpufreq domain 1 (cpu4-6);
+        // Gold Prime (cpu7): cpufreq domain 2.
+        cpu4: cpu@400 { device_type = "cpu"; compatible = "arm,cortex-a77"; reg = <0 0x400>; unixnu,cluster-type = "P"; };
+        cpu5: cpu@500 { device_type = "cpu"; compatible = "arm,cortex-a77"; reg = <0 0x500>; unixnu,cluster-type = "P"; };
+        cpu6: cpu@600 { device_type = "cpu"; compatible = "arm,cortex-a77"; reg = <0 0x600>; unixnu,cluster-type = "P"; };
+        cpu7: cpu@700 { device_type = "cpu"; compatible = "arm,cortex-a77"; reg = <0 0x700>; unixnu,cluster-type = "P"; };
+    };
+
+    psci { compatible = "arm,psci-1.0"; method = "smc"; };
+
+    soc {
+        compatible = "simple-bus";
+        #address-cells = <2>;
+        #size-cells = <2>;
+        ranges;
+
+        // GICv3: one 64 KiB distributor, eight 128 KiB redistributor frames.
+        // HakiOS: xnuloader platform_apollo (gic_dist, gic_redist).
+        gic: interrupt-controller@17a00000 {
+            compatible = "arm,gic-v3";
+            unixnu,adt-name = "intc";
+            reg = <0 0x17a00000 0 0x10000>, <0 0x17a60000 0 0x100000>;
+            #interrupt-cells = <4>;
+            #address-cells = <0>;
+            interrupt-controller;
+            redistributor-stride = <0 0x20000>;
+        };
+
+        // Global clock controller. HakiOS: GCC_PHYS in apollo_touch/pcie/adreno.
+        gcc: clock-controller@100000 {
+            compatible = "qcom,gcc-sm8250";
+            reg = <0 0x00100000 0 0x1f0000>;
+            status = "disabled";
+        };
+
+        // EPSS cpufreq-hw, three frequency domains (cores 0-3, 4-6, 7).
+        // HakiOS: hakios.apollo_cpufreq.c (EPSS_PHYS).
+        cpufreq_hw: cpufreq@18591000 {
+            compatible = "qcom,sm8250-cpufreq-epss", "qcom,cpufreq-epss";
+            reg = <0 0x18591000 0 0x1000>, <0 0x18592000 0 0x1000>, <0 0x18593000 0 0x1000>;
+            reg-names = "freq-domain0", "freq-domain1", "freq-domain2";
+            status = "disabled";
+        };
+
+        // Application-processor RSC (RPMh TCS). HakiOS: RSC_PHYS
+        // (TCS 0 audio DSP, TCS 1 Wi-Fi rails).
+        apps_rsc: rsc@18200000 {
+            compatible = "qcom,rpmh-rsc";
+            reg = <0 0x18200000 0 0x10000>, <0 0x18210000 0 0x10000>, <0 0x18220000 0 0x10000>;
+            reg-names = "drv-0", "drv-1", "drv-2";
+            status = "disabled";
+        };
+
+        // SPMI PMIC arbiter: PM8150 (slave 0), PM8150B (2), PM8150L (4/5).
+        // HakiOS: hakios.apollo_battery.c, _buttons.c, _backlight.c (ARB_*_PHYS).
+        spmi_bus: spmi@c440000 {
+            compatible = "qcom,spmi-pmic-arb";
+            reg = <0 0x0c440000 0 0x1100>, <0 0x0c600000 0 0x2000000>, <0 0x0e600000 0 0x100000>,
+                  <0 0x0e700000 0 0xa0000>, <0 0x0c40a000 0 0x26000>;
+            reg-names = "core", "chnls", "obsrvr", "intr", "cnfg";
+            status = "disabled";
+        };
+
+        // Temperature sensors. HakiOS: TSENS0_TM_PHYS, TSENS1_TM_PHYS.
+        tsens0: thermal-sensor@c263000 { compatible = "qcom,sm8250-tsens", "qcom,tsens-v2"; reg = <0 0x0c263000 0 0x1ff>; status = "disabled"; };
+        tsens1: thermal-sensor@c265000 { compatible = "qcom,sm8250-tsens", "qcom,tsens-v2"; reg = <0 0x0c265000 0 0x1ff>; status = "disabled"; };
+
+        // Top-level pin controller (west, south, north tiles).
+        // HakiOS: TLMM_PHYS, TLMM_SOUTH_PHYS, TLMM_NORTH_PHYS.
+        tlmm: pinctrl@f100000 {
+            compatible = "qcom,sm8250-pinctrl";
+            reg = <0 0x0f100000 0 0x300000>, <0 0x0f500000 0 0x300000>, <0 0x0f900000 0 0x300000>;
+            reg-names = "west", "south", "north";
+            status = "disabled";
+        };
+
+        // QUPv3 wrappers. Serial engines are board-wired; the board enables the
+        // engine it uses and states its protocol (I2C, SPI, UART).
+        qupv3_id_2: geniqup@8c0000 { compatible = "qcom,geni-se-qup"; reg = <0 0x008c0000 0 0x6000>; status = "disabled"; };
+        qupv3_id_0: geniqup@9c0000 {
+            compatible = "qcom,geni-se-qup";
+            reg = <0 0x009c0000 0 0x6000>;
+            #address-cells = <2>;
+            #size-cells = <2>;
+            ranges;
+            status = "disabled";
+            // SE3 (HakiOS: CS35L41 amplifiers on apollo) and SE4 (NT36675 touch on apollo).
+            qup_se3: geni-se@98c000 { reg = <0 0x0098c000 0 0x4000>; status = "disabled"; };
+            qup_se4: geni-se@990000 { reg = <0 0x00990000 0 0x4000>; status = "disabled"; };
+        };
+        qupv3_id_1: geniqup@ac0000 {
+            compatible = "qcom,geni-se-qup";
+            reg = <0 0x00ac0000 0 0x6000>;
+            #address-cells = <2>;
+            #size-cells = <2>;
+            ranges;
+            status = "disabled";
+            // SE11 (HakiOS: AW8697 haptics on apollo).
+            qup_se11: geni-se@a8c000 { reg = <0 0x00a8c000 0 0x4000>; status = "disabled"; };
+        };
+
+        // UFS host controller and PHY; the board enables them with its storage component.
+        ufs: ufshc@1d84000 {
+            compatible = "qcom,sm8250-ufshc", "qcom,ufshc";
+            unixnu,adt-name = "ufshc";
+            reg = <0 0x01d84000 0 0x3000>;
+            status = "disabled";
+        };
+        ufsphy: phy@1d87000 {
+            compatible = "qcom,sm8250-qmp-ufs-phy";
+            unixnu,adt-name = "ufsphy";
+            reg = <0 0x01d87000 0 0x1000>;
+            status = "disabled";
+        };
+
+        // PCIe0 (the Wi-Fi link on most SM8250 phones) and its QMP PHY.
+        // HakiOS: hakios.apollo_pcie.c (PARF/DBI/ATU/CONF/PHY_PHYS).
+        pcie0: pcie@1c00000 {
+            compatible = "qcom,pcie-sm8250";
+            reg = <0 0x01c00000 0 0x3000>, <0 0x60000000 0 0xf1d>, <0 0x60000f20 0 0xa8>,
+                  <0 0x60001000 0 0x1000>, <0 0x60100000 0 0x100000>, <0 0x01c03000 0 0x1000>;
+            reg-names = "parf", "dbi", "elbi", "atu", "config", "mhi";
+            status = "disabled";
+        };
+        pcie0_phy: phy@1c06000 {
+            compatible = "qcom,sm8250-qmp-gen3x1-pcie-phy";
+            reg = <0 0x01c06000 0 0x1000>;
+            status = "disabled";
+        };
+
+        // Application SMMU (MMU-500). HakiOS: SMMU_PHYS (Wi-Fi DMA contexts).
+        apps_smmu: iommu@15000000 {
+            compatible = "qcom,sm8250-smmu-500", "arm,mmu-500";
+            reg = <0 0x15000000 0 0x100000>;
+            #iommu-cells = <2>;
+            #global-interrupts = <2>;
+            status = "disabled";
+        };
+
+        // Adreno 650, its GMU and its SMMU; enabled by the board with an A650 GPU component.
+        // HakiOS: hakios.apollo_adreno.c, iokit/Kernel/hakios.apollo_gpu.cpp.
+        gpu: gpu@3d00000 {
+            compatible = "qcom,adreno-650.2", "qcom,adreno";
+            reg = <0 0x03d00000 0 0x40000>, <0 0x03d9e000 0 0x1000>, <0 0x03d61000 0 0x800>;
+            reg-names = "kgsl_3d0_reg_memory", "cx_mem", "cx_dbgc";
+            interrupts = <0 300 4 0>;
+            iommus = <&gpu_smmu 0 0x401>;
+            status = "disabled";
+        };
+        gmu: gmu@3d6a000 {
+            compatible = "qcom,adreno-gmu-650.2", "qcom,adreno-gmu";
+            reg = <0 0x03d6a000 0 0x30000>, <0 0x03de0000 0 0x10000>,
+                  <0 0x0b290000 0 0x10000>, <0 0x0b490000 0 0x10000>;
+            reg-names = "gmu", "rscc", "gmu_pdc", "gmu_pdc_seq";
+            interrupts = <0 304 4 0>, <0 305 4 0>;
+            interrupt-names = "hfi", "gmu";
+            iommus = <&gpu_smmu 5 0x400>;
+            status = "disabled";
+        };
+        gpu_smmu: iommu@3da0000 {
+            compatible = "qcom,sm8250-smmu-500", "qcom,adreno-smmu", "arm,mmu-500";
+            reg = <0 0x03da0000 0 0x10000>;
+            #iommu-cells = <2>;
+            #global-interrupts = <2>;
+            status = "disabled";
+        };
+
+        // Display subsystem: MDSS, DPU and timing engine INTF_1 (the DSI0 video interface).
+        // HakiOS: hakios.apollo_display.c (MDP_PHYS, CTL_PHYS, INTF_PHYS).
+        mdss: display-subsystem@ae00000 {
+            compatible = "qcom,sm8250-mdss";
+            reg = <0 0x0ae00000 0 0x1000>;
+            #address-cells = <2>;
+            #size-cells = <2>;
+            ranges;
+            status = "disabled";
+            mdss_mdp: display-controller@ae01000 {
+                compatible = "qcom,sm8250-dpu";
+                reg = <0 0x0ae01000 0 0x8f000>, <0 0x0aeb0000 0 0x2008>;
+                reg-names = "mdp", "vbif";
+                status = "disabled";
+            };
+        };
+
+        // Audio DSP (LPASS) peripheral image loader.
+        // HakiOS: hakios.apollo_adsp.c (pas-id 1, smem-id 423).
+        adsp: remoteproc@17300000 {
+            compatible = "qcom,sm8250-adsp-pas";
+            reg = <0 0x17300000 0 0x100>;
+            status = "disabled";
+        };
+
+        // USB3 primary port: the DWC3 core (vendor kona-usb.dtsi range; the Linux
+        // wrapper at 0xa6f8800 is omitted). Its owner is the board USB or debug-console component.
+        usb_1: usb@a600000 {
+            compatible = "snps,dwc3";
+            reg = <0 0x0a600000 0 0x100000>;
+            status = "disabled";
+        };
+    };
+};

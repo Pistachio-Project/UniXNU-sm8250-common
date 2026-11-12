@@ -1,0 +1,6 @@
+# SoC patch paths, one per line in application order, relative to this directory.
+#
+# Empty in this revision. The SoC parts of HakiOS's kernel patch (8-core MPIDR numbering
+# with Affinity1 core ids, the 4+4 E/P cluster split read from unixnu,cluster-type) are
+# still in the device repositories against xnu-8796.121.2. They land here as separate
+# patches once split out and checked against the arch and OS series (README.md, "Planned").

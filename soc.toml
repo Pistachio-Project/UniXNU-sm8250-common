@@ -1,0 +1,11 @@
+schema_version = 2
+
+[soc]
+name = "sm8250"
+description = "Qualcomm SM8250 / SM8250-AC (kona)"
+# Register facts: the HakiOS drivers measured on a Xiaomi Mi 10T, cross-checked against Linux.
+source_repository = "https://github.com/torvalds/linux"
+source_revision = "adc218676eef25575469234709c2d87185ca223a"
+
+[components]
+include = ["ArmCpu", "ArmDTPlatform"]
