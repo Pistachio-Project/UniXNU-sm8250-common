@@ -118,9 +118,11 @@
             #size-cells = <2>;
             ranges;
             status = "disabled";
-            // SE3 (HakiOS: CS35L41 amplifiers on apollo) and SE4 (NT36675 touch on apollo).
+            // SE3 (HakiOS: CS35L41 amplifiers on apollo), SE4 (NT36675 touch on apollo), SE6.
             qup_se3: geni-se@98c000 { reg = <0 0x0098c000 0 0x4000>; status = "disabled"; };
             qup_se4: geni-se@990000 { reg = <0 0x00990000 0 0x4000>; status = "disabled"; };
+            // SE6 (UART: QCA6390 Bluetooth on apollo; aTechGeekDev/ios-apollo xnu 0136).
+            qup_se6: geni-se@998000 { reg = <0 0x00998000 0 0x4000>; status = "disabled"; };
         };
         qupv3_id_1: geniqup@ac0000 {
             compatible = "qcom,geni-se-qup";
