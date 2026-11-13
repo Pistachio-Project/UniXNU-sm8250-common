@@ -1,0 +1,5 @@
+# SoC patch paths for xnu-12377, one per line in application order.
+# Both are UniXNU-sm8550-common's (42f3b40 line): the PMGR hook is the context the OS profile's boot-progress patch
+# applies on, and Kryo 585 numbers its cores in MPIDR Affinity1 like the SM8550.
+platform-power.patch
+native-smp-secondary.patch

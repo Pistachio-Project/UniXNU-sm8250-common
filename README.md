@@ -11,6 +11,7 @@ and supply memory layout, enabled peripherals, components, firmware, power polic
 | `dts/sm8250.dtsi` | CPUs with E/P cluster types, PSCI, GICv3, GCC, EPSS cpufreq, RSC, SPMI, TSENS, TLMM, QUPv3, UFS, PCIe0, SMMUs, Adreno 650 + GMU, MDSS/DPU, ADSP, USB |
 | `configs/sm8250.config` | Kernel config fragment, applied before the device defconfig |
 | `patches/xnu/series` | SoC XNU patches in order (empty in this revision) |
+| `patches/xnu-12377/series` | SoC patches for xnu-12377.121.6 (the iOS/iPadOS 26 and 27 profiles): the board power hook the OS profile's boot-progress patch applies on, and MPIDR Affinity1 core numbering. Both are UniXNU-sm8550-common's (BSD-2-Clause-Patent) |
 | `kits/` | Shared platform operations (empty in this revision) |
 
 ## Sources
